@@ -3,15 +3,15 @@
 > [!TIP]
 > If you haven't read the article [The second wave of MCP: Building for LLMs, not developers](https://vercel.com/blog/the-second-wave-of-mcp-building-for-llms-not-developers) by Vercel, I highly recommend checking it out to understand why we're building this project.
 
-[GitHub's official MCP Server](https://github.com/github/github-mcp-server) sucks, because it is exposing millions of tools which takes tens of thousands of tokens to describe, and most of them are useless for LLMs.
+[GitHub's official MCP Server](https://github.com/github/github-mcp-server) exposes dozens of low-level tools that bloat token usage and are mostly impractical for LLMs. `gh-mcp` achieves the best of both worlds by providing a single, powerful interface: GitHub GraphQL, wrapped with smart abstractions.
 
 This project does 3 things differently:
 
-1. It only exposes the GitHub GraphQL API, which is powerful enough and LLMs are already familiar with it.
-2. It returns the JSON response as YAML by default, which makes file content in the returned data more readable (less escaping).
-3. It provides a single well-defined tool that wraps around the `gh api graphql` CLI, which takes the authentication and other low-level details away from this implementation. LLMs also know how to use `--jq` to filter the output.
+1. **One powerful tool** — exposes GraphQL instead of atomized endpoints. LLMs already understand GraphQL.
+2. **YAML output by default** — makes nested data and file content readable without escaping.
+3. **Clean abstractions** — handles authentication and low-level details. LLMs know how to use `--jq` to filter.
 
-After replacing the official GitHub MCP server with this one, I observed a significant improvement in the performance, cost and speed of my applications that interact with GitHub via LLMs.
+Swapping in `gh-mcp` delivers better performance at lower cost for any GitHub interactions.
 
 ## Installation
 
