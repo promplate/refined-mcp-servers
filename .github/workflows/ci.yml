@@ -1,0 +1,69 @@
+name: CI
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  typos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: crate-ci/typos@master
+
+  lint:
+    strategy:
+      matrix:
+        os: [ubuntu, macos, windows]
+        py: ["3.12", "3.13", "3.14"]
+      fail-fast: false
+    runs-on: ${{ matrix.os }}-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Python ${{ matrix.py }}
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ matrix.py }}
+          activate-environment: true
+      - name: Install dependencies
+        run: |
+            uv sync --all-packages
+      - name: Linting
+        run: |
+          ruff format --check --diff
+          ruff check --diff
+      - uses: oven-sh/setup-bun@v2
+      - name: Check typing
+        run: bunx basedpyright
+
+  publish:
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dir:
+          - gh
+      fail-fast: false
+    needs: [typos, lint]
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: packages/${{ matrix.dir }}
+      - name: Set up Python
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: 3.14
+      - name: Remove admonitions from READMEs
+        run: |
+          find . -type f -name "README.md" -exec sed -i -E '/^> \[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]$/d' {} +
+      - name: Remove all noqa comments
+        run: |
+          uvx ruff check --select RUF100 --show-fixes --fix packages/${{ matrix.dir }}
+      - name: Build wheel for ${{ matrix.dir }}
+        run: |
+          uv build packages/${{ matrix.dir }} --wheel
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          verbose: true
+          print-hash: true
+          skip-existing: true
