@@ -1,6 +1,7 @@
 [project]
 name = "gh-mcp"
 dynamic = ["version"]
+readme = "README.md"
 description = "Refined MCP server for GitHub GraphQL API"
 requires-python = ">=3.12"
 dependencies = [
