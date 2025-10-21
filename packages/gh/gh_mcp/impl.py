@@ -7,7 +7,7 @@ from fastmcp.exceptions import ToolError
 
 from .yaml import readable_yaml_dumps
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 mcp = FastMCP("gh", version=__version__, include_fastmcp_meta=False)
 
