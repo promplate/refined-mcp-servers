@@ -29,16 +29,21 @@ def github_graphql(query: str, jq: str | None = ".data", as_yaml: bool = True):
     { __type(name: "Query") { fields(includeDeprecated: false) { name description type { name kind } args { name description type { name kind } } } } }
     ```
 
+    Always combine everything you need into a single call to this tool, using multiple query or mutation operations.
+    But when you encounter errors, first try to introspect the schema and then rebuild your query step by step, verifying each part works as expected.
+
+    When constructing GraphQL queries, leverage features like multiple operations, fragments, and nested fields to retrieve more relevant data in a single call, as shown in the examples below.
+
     > Example - when you need to browse multiple repositories:
 
     ```graphql
     query {
-      hmr: repository(owner: "promplate", name: "hmr") {
-        ...RepositoryMetadata
-      }
-
-      pythonline: repository(owner: "promplate", name: "pyth-on-line") {
-        ...RepositoryMetadata
+      viewer { # Always use `viewer` to get information about the authenticated user.
+        repositories(first: 2, orderBy: {field: UPDATED_AT, direction: DESC}) {
+          nodes {
+            ...RepositoryMetadata
+          }
+        }
       }
     }
 
@@ -111,8 +116,7 @@ def github_graphql(query: str, jq: str | None = ".data", as_yaml: bool = True):
     > Example - when you need to browse repository files with metadata:
 
     ```graphql
-    query {
-      repository(owner: "promplate", name: "hmr") {
+    [...]
         files: object(expression: "HEAD:") {
           ... on Tree {
             entries {
@@ -125,7 +129,7 @@ def github_graphql(query: str, jq: str | None = ".data", as_yaml: bool = True):
                   text
                   isTruncated
                 }
-                ... on Tree {
+                ... on Tree { # manual recursion
                   entries {
                     path
                     type
@@ -134,32 +138,7 @@ def github_graphql(query: str, jq: str | None = ".data", as_yaml: bool = True):
                     object {
                       ... on Blob {
                         text
-                        isTruncated
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-        # Get latest commit that touched root
-        defaultBranchRef {
-          target {
-            ... on Commit {
-              history(first: 1) {
-                nodes {
-                  abbreviatedOid
-                  message
-                  committedDate
-                  author { name user { login } }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+    [... and perform additional operations in the same call ...]
     ```
 
     Filter non-generated files recursively at all depths with jq:
