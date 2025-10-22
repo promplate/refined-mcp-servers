@@ -41,70 +41,54 @@ def process:
 @mcp.tool(title="GitHub GraphQL")
 def github_graphql(query: str, jq: str | None = DEFAULT_JQ, as_yaml: bool = True):
     """
-    Execute GitHub GraphQL queries via gh CLI. Preferred over raw gh calls or other ways to interact with GitHub.
+    Execute GitHub GraphQL queries via gh CLI. Preferred over raw gh calls or other tools to interact with GitHub.
+    When user uses any terms like find / search / read / browse / explore / research / investigate / analyze and if it may be related to a GitHub project, you should use this tool instead of any other tools or raw API / CLI calls.
+
     Pleases make use of GraphQL's capabilities - Fetch comprehensive data in single queries - always include metadata context.
     Returns YAML by default for better readability. Feel free to use advanced jq expressions to extract all the content you care about.
     The default jq adds line numbers to retrieved file contents.
 
-    Before writing complex queries / mutations or when encountering errors, use introspection to understand available fields and types:
-    ```graphql
-    { __type(name: "Query") { fields(includeDeprecated: false) { name description type { name kind } args { name description type { name kind } } } } }
-    ```
+    Before writing complex queries / mutations or when encountering errors, use introspection to understand available fields and types.
 
-    Always combine everything you need into a single call to this tool, using multiple query or mutation operations.
-    But when you encounter errors, first try to introspect the schema and then rebuild your query step by step, verifying each part works as expected.
+    Combine operations (including introspection operations) into one call. On errors, introspect and rebuild step-by-step.
 
-    When constructing GraphQL queries, leverage features like multiple operations, fragments, and nested fields to retrieve more relevant data in a single call, as shown in the examples below.
+    Use fragments, nested fields for efficiency.
 
     > Example - when you need to browse multiple repositories:
 
-    ```graphql
+    When user asks to browse / explore repositories, you must use at least the following fields:
+    (It take viewer.contributionsCollection as an example, but you should adapt it to the user's request)
+
+    ```
     query {
       viewer { # Always use `viewer` to get information about the authenticated user.
-        repositories(first: 2, orderBy: {field: UPDATED_AT, direction: DESC}) {
-          nodes {
-            ...RepositoryMetadata
+        contributionsCollection {
+          commits: commitContributionsByRepository(maxRepositories: 7) {
+            repository { ...RepositoryMetadata }
+            contributions { totalCount }
           }
+          totalCommitContributions
         }
       }
     }
 
     fragment RepositoryMetadata on Repository {
-      name
-      description
-      homepageUrl
-
-      pushedAt
-      createdAt
-      updatedAt
-
-      stargazerCount
-      forkCount
-
-      isPrivate
-      isFork
-      isArchived
-
+      name description homepageUrl
+      pushedAt createdAt updatedAt
+      stargazerCount forkCount
+      isPrivate isFork isArchived
       languages(first: 7, orderBy: {field: SIZE, direction: DESC}) {
-        totalSize
-        edges {
-          size
-          node { name }
-        }
+        totalSize edges { size node { name } }
       }
-
       readme_md: object(expression: "HEAD:README.md") { ... on Blob { text } }
       pyproject_toml: object(expression: "HEAD:pyproject.toml") { ... on Blob { text } }
       package_json: object(expression: "HEAD:package.json") { ... on Blob { text } }
-
       latestCommits: defaultBranchRef {
         target {
           ... on Commit {
             history(first: 7) {
               nodes {
-                abbreviatedOid
-                committedDate
-                message
+                abbreviatedOid committedDate message
                 author { name user { login } }
                 associatedPullRequests(first: 7) { nodes { number title url } }
               }
@@ -112,23 +96,17 @@ def github_graphql(query: str, jq: str | None = DEFAULT_JQ, as_yaml: bool = True
           }
         }
       }
-
       contributors: collaborators(first: 7) { totalCount nodes { login name } }
-
       latestIssues: issues(first: 7, orderBy: {field: CREATED_AT, direction: DESC}) {
         nodes { number title state createdAt updatedAt author { login } }
       }
-
       latestPullRequests: pullRequests(first: 5, orderBy: {field: CREATED_AT, direction: DESC}) {
         nodes { number title state createdAt updatedAt author { login } }
       }
-
       latestDiscussions: discussions(first: 3, orderBy: {field: UPDATED_AT, direction: DESC}) {
         nodes { number title createdAt updatedAt author { login } }
       }
-
       repositoryTopics(first: 35) { nodes { topic { name } } }
-
       releases(first: 7, orderBy: {field: CREATED_AT, direction: DESC}) {
         nodes { tagName name publishedAt isPrerelease }
       }
@@ -137,35 +115,23 @@ def github_graphql(query: str, jq: str | None = DEFAULT_JQ, as_yaml: bool = True
 
     > Example - when you need to browse repository files with metadata:
 
-    ```graphql
     [...]
         files: object(expression: "HEAD:") {
           ... on Tree {
             entries {
-              path # prefer this over `name` - full relative path
-              type
-              mode
-              isGenerated
+              # prefer this over `name` - full relative path
+              path type mode isGenerated
               object {
-                ... on Blob {
-                  text
-                  isTruncated
-                }
-                ... on Tree { # manual recursion
+                ... on Blob { text isTruncated }
+                # manual recursion
+                ... on Tree {
                   entries {
-                    path
-                    type
-                    mode
-                    isGenerated
+                    path type mode isGenerated
                     object {
-                      ... on Blob {
-                        text
     [... and perform additional operations in the same call ...]
-    ```
 
     Filter non-generated files recursively at all depths with jq:
-    ```bash
-    --jq 'def filter_generated: if type == "array" then map(select(.isGenerated | not) | if .object.entries then .object.entries |= [.[] | filter_generated] else . end) else . end; .data.repository.files.entries | filter_generated'
+    def filter_generated: if type == "array" then map(select(.isGenerated | not) | if .object.entries then .object.entries |= [.[] | filter_generated] else . end) else . end; .data.repository.files.entries | filter_generated
     """
 
     cmd = ["gh", "api", "graphql", "--input", "-"]
