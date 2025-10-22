@@ -1,3 +1,4 @@
+from os import environ
 from sys import argv
 
 
@@ -16,7 +17,11 @@ def main(argv: list[str] = argv[1:]):
         transport_group.add_argument("--http", action="store_true", help="Run with streamable-http transport")
         parser.add_argument("--host", default="localhost", help="Host to run the HTTP server on")
         parser.add_argument("--port", type=int, help="Port to run the HTTP server on")
+        parser.add_argument("--token", help="Specify the GitHub token", metavar="GITHUB_TOKEN")
         args = parser.parse_args(argv)
+
+        if args.token:
+            environ["GH_TOKEN"] = args.token
 
         from .impl import mcp
 
