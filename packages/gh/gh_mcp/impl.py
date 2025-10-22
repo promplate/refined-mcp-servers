@@ -113,25 +113,12 @@ def github_graphql(query: str, jq: str | None = DEFAULT_JQ, as_yaml: bool = True
     }
     ```
 
-    > Example - when you need to browse repository files with metadata:
+    Don't recursively fetch all files in a directory unless:
+    1. You know the files are not too many.
+    2. The user specifically requests it.
+    3. You provide a jq filter to limit results (e.g. isGenerated field).
 
-    [...]
-        files: object(expression: "HEAD:") {
-          ... on Tree {
-            entries {
-              # prefer this over `name` - full relative path
-              path type mode isGenerated
-              object {
-                ... on Blob { text isTruncated }
-                # manual recursion
-                ... on Tree {
-                  entries {
-                    path type mode isGenerated
-                    object {
-    [... and perform additional operations in the same call ...]
-
-    Filter non-generated files recursively at all depths with jq:
-    def filter_generated: if type == "array" then map(select(.isGenerated | not) | if .object.entries then .object.entries |= [.[] | filter_generated] else . end) else . end; .data.repository.files.entries | filter_generated
+    The core principle is to fetch as much relevant metadata as possible in a single query, rather than file contents.
     """
 
     cmd = ["gh", "api", "graphql", "--input", "-"]
