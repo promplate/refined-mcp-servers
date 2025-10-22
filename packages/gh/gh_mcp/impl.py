@@ -1,6 +1,7 @@
 from contextlib import suppress
 from json import JSONDecodeError, dumps, loads
 from subprocess import CompletedProcess, run
+from typing import Literal
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
@@ -154,3 +155,64 @@ def github_graphql(query: str, jq: str | None = DEFAULT_JQ):
         return readable_yaml_dumps(data)
 
     return result
+
+
+@mcp.tool(title="GitHub Code Search")
+def github_code_search(
+    query: str,
+    extension: str | None = None,
+    filename: str | None = None,
+    owner: str | None = None,
+    repo: str | None = None,
+    language: str | None = None,
+    match_type: Literal["content", "path"] = "content",
+):
+    r"""
+    Don't use modifiers, use the options instead.
+    And you can't use these wildcard characters as part of your search query:
+    . , : ; / \ ` ' " = * ! ? # $ & + ^ | ~ < > ( ) { } [ ] @
+    """
+
+    cmd = ["gh", "search", "code", query, "--limit", "100"]
+
+    if extension:
+        cmd += ["--extension", extension]
+    if filename:
+        cmd += ["--filename", filename]
+    if owner:
+        cmd += ["--owner", owner]
+    if repo:
+        cmd += ["--repo", repo]
+    if language:
+        cmd += ["--language", language]
+
+    if match_type == "path":
+        cmd += ["--match", "path", "--json", "url", "--jq", ".[] | .url"]
+    else:
+        cmd += ["--json", "url,textMatches"]
+
+    ret: CompletedProcess = ...  # type: ignore
+    for _ in range(3):  # Retry up to 3 times on network issues
+        ret = run(cmd, capture_output=True, text=True, encoding="utf-8")
+        if ret.returncode == 4:
+            raise ToolError("[[ No GitHub credentials found. Please log in to gh CLI or provide --token parameter when starting this MCP server! ]]")
+        if ret.returncode < 2:
+            is_error = ret.returncode == 1
+            break
+    else:
+        msg = f"gh returned non-zero exit code {ret.returncode}"
+        raise ToolError(f"{msg}:\n{details}" if (details := ret.stdout or ret.stderr) else msg)
+
+    if is_error:
+        raise ToolError(ret.stdout or ret.stderr or "[[ An unknown error occurred during the code search. ]]")
+
+    if match_type == "path":
+        return ret.stdout or ret.stderr
+
+    assert ret.stdout is not None
+
+    data = loads(ret.stdout)
+    for item in data:
+        item["fragments"] = [i["fragment"] for i in item.pop("textMatches")]
+
+    return readable_yaml_dumps(data)
