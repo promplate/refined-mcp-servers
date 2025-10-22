@@ -58,7 +58,7 @@ def github_graphql(query: str, jq: str | None = ".data", as_yaml: bool = True):
       isFork
       isArchived
 
-      languages(first: 7) {
+      languages(first: 7, orderBy: {field: SIZE, direction: DESC}) {
         totalSize
         edges {
           size
