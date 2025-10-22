@@ -1,4 +1,6 @@
-# `gh-mcp` - Refined MCP server for GitHub GraphQL API
+# `gh-mcp`
+
+Refined MCP server for GitHub GraphQL API.
 
 > [!TIP]
 > If you haven't read the article [The second wave of MCP: Building for LLMs, not developers](https://vercel.com/blog/the-second-wave-of-mcp-building-for-llms-not-developers) by Vercel, I highly recommend checking it out to understand why we're building this project.
