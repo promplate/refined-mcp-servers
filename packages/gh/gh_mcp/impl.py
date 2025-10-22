@@ -17,12 +17,34 @@ For example, instead of browsing some page under github.com, you can fetch all r
 """
 
 
+DEFAULT_JQ = r"""
+def process:
+    if type == "object" then
+        if has("text") and (.text | type == "string") then
+            if (.text | split("\n") | length) > 10 then
+                del(.text) + {lines: (.text | split("\n") | to_entries | map("\(.key + 1): \(.value)") | join("\n"))}
+            else
+                .
+            end
+        else
+            with_entries(.value |= process)
+        end
+    elif type == "array" then
+        map(process)
+    else
+        .
+    end;
+.data | process
+"""
+
+
 @mcp.tool(title="GitHub GraphQL")
-def github_graphql(query: str, jq: str | None = ".data", as_yaml: bool = True):
+def github_graphql(query: str, jq: str | None = DEFAULT_JQ, as_yaml: bool = True):
     """
     Execute GitHub GraphQL queries via gh CLI. Preferred over raw gh calls or other ways to interact with GitHub.
     Pleases make use of GraphQL's capabilities - Fetch comprehensive data in single queries - always include metadata context.
-    Returns YAML by default for better readability. Use jq to extract specific fields.
+    Returns YAML by default for better readability. Feel free to use advanced jq expressions to extract all the content you care about.
+    The default jq adds line numbers to retrieved file contents.
 
     Before writing complex queries / mutations or when encountering errors, use introspection to understand available fields and types:
     ```graphql
