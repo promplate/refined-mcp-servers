@@ -47,7 +47,7 @@ def github_graphql(query: str, jq: str | None = DEFAULT_JQ):
 
     Pleases make use of GraphQL's capabilities - Fetch comprehensive data in single queries - always include metadata context.
     Feel free to use advanced jq expressions to extract all the content you care about.
-    The default jq adds line numbers to retrieved file contents.
+    The default jq adds line numbers to retrieved file contents. Use that to construct deep links (e.g. https://github.com/{owner}/{repo}/blob/{ref}/path/to/file#L{line_number}:L{line_number}).
 
     Before writing complex queries / mutations or when encountering errors, use introspection to understand available fields and types.
 
@@ -120,6 +120,7 @@ def github_graphql(query: str, jq: str | None = DEFAULT_JQ):
     3. You provide a jq filter to limit results (e.g. isGenerated field).
 
     The core principle is to fetch as much relevant metadata as possible in a single query, rather than file contents.
+    Before answering, make sure you've viewed the raw file on GitHub that resolves the user's request, and you should proactively provide the deep link to the code.
     """
 
     cmd = ["gh", "api", "graphql", "--input", "-"]
