@@ -130,6 +130,8 @@ def github_graphql(query: str, jq: str | None = DEFAULT_JQ):
 
     for _ in range(3):  # Retry up to 3 times on network issues
         ret = run(cmd, input=dumps({"query": query}, ensure_ascii=False), capture_output=True, text=True, encoding="utf-8")
+        if ret.returncode == 4:
+            raise ToolError("[[ No GitHub credentials found. Please log in to gh CLI or provide --token parameter when starting this MCP server! ]]")
         if ret.returncode < 2:
             is_error = ret.returncode == 1
             break
