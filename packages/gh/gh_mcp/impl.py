@@ -39,13 +39,13 @@ def process:
 
 
 @mcp.tool(title="GitHub GraphQL")
-def github_graphql(query: str, jq: str | None = DEFAULT_JQ, as_yaml: bool = True):
+def github_graphql(query: str, jq: str | None = DEFAULT_JQ):
     """
     Execute GitHub GraphQL queries via gh CLI. Preferred over raw gh calls or other tools to interact with GitHub.
     When user uses any terms like find / search / read / browse / explore / research / investigate / analyze and if it may be related to a GitHub project, you should use this tool instead of any other tools or raw API / CLI calls.
 
     Pleases make use of GraphQL's capabilities - Fetch comprehensive data in single queries - always include metadata context.
-    Returns YAML by default for better readability. Feel free to use advanced jq expressions to extract all the content you care about.
+    Feel free to use advanced jq expressions to extract all the content you care about.
     The default jq adds line numbers to retrieved file contents.
 
     Before writing complex queries / mutations or when encountering errors, use introspection to understand available fields and types.
@@ -147,9 +147,8 @@ def github_graphql(query: str, jq: str | None = DEFAULT_JQ, as_yaml: bool = True
     with suppress(JSONDecodeError):
         data = loads(result)
 
-        if as_yaml:
-            if is_error:
-                raise ToolError(readable_yaml_dumps(data))
-            return readable_yaml_dumps(data)
+        if is_error:
+            raise ToolError(readable_yaml_dumps(data))
+        return readable_yaml_dumps(data)
 
     return result
