@@ -8,7 +8,7 @@ from fastmcp.exceptions import ToolError
 
 from .yaml import readable_yaml_dumps
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 mcp = FastMCP("gh", version=__version__, include_fastmcp_meta=False)
 
@@ -173,6 +173,15 @@ def github_code_search(
     And you can't use these wildcard characters as part of your search query:
     . , : ; / \ ` ' " = * ! ? # $ & + ^ | ~ < > ( ) { } [ ] @
     """
+
+    if repo and "/" not in repo:
+        if not owner:
+            raise ToolError("Please provide the `repo` option in the format 'owner/repo'")
+        repo = f"{owner}/{repo}"
+        owner = None
+
+    if not any((extension, filename, owner, repo, language)) and len(query) - 3 * (query.count(" ") + query.count(".")) < 7:
+        raise ToolError("Query too broad. Please refine your search.")
 
     cmd = ["gh", "search", "code", query, "--limit", "100"]
 
