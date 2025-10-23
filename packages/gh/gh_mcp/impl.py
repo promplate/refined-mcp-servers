@@ -161,7 +161,7 @@ def github_graphql(query: str, jq: str = DEFAULT_JQ):
 
 @mcp.tool(title="GitHub Code Search")
 def github_code_search(
-    query: str,
+    code_snippet: str,
     extension: str = Field(default_factory=str),
     filename: str = Field(default_factory=str),
     owner: str = Field(default_factory=str),
@@ -171,7 +171,7 @@ def github_code_search(
 ):
     r"""
     Don't use modifiers, use the options instead.
-    And you can't use these wildcard characters as part of your search query:
+    And you can't use these wildcard characters as part of your search code snippet:
     . , : ; / \ ` ' " = * ! ? # $ & + ^ | ~ < > ( ) { } [ ] @
     """
 
@@ -181,10 +181,10 @@ def github_code_search(
         repo = f"{owner}/{repo}"
         owner = ""
 
-    if not any((extension, filename, owner, repo, language)) and len(query) - 3 * (query.count(" ") + query.count(".")) < 7:
+    if not any((extension, filename, owner, repo, language)) and len(code_snippet) - 3 * (code_snippet.count(" ") + code_snippet.count(".")) < 7:
         raise ToolError("Query too broad. Please refine your search.")
 
-    cmd = ["gh", "search", "code", query, "--limit", "100"]
+    cmd = ["gh", "search", "code", code_snippet, "--limit", "100"]
 
     if extension:
         cmd += ["--extension", extension]
