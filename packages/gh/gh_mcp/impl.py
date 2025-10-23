@@ -5,6 +5,7 @@ from typing import Literal
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
+from pydantic import Field
 
 from .yaml import readable_yaml_dumps
 
@@ -40,12 +41,12 @@ def process:
 
 
 @mcp.tool(title="GitHub GraphQL")
-def github_graphql(query: str, jq: str | None = DEFAULT_JQ):
+def github_graphql(query: str, jq: str = DEFAULT_JQ):
     """
-    Execute GitHub GraphQL queries via gh CLI. Preferred over raw gh calls or other tools to interact with GitHub.
+    Execute GitHub GraphQL queries and mutations via gh CLI. Preferred over raw gh calls or other tools to interact with GitHub.
     When user uses any terms like find / search / read / browse / explore / research / investigate / analyze and if it may be related to a GitHub project, you should use this tool instead of any other tools or raw API / CLI calls.
 
-    Pleases make use of GraphQL's capabilities - Fetch comprehensive data in single queries - always include metadata context.
+    Pleases make use of GraphQL's capabilities - Fetch comprehensive data in single operations - always include metadata context.
     Feel free to use advanced jq expressions to extract all the content you care about.
     The default jq adds line numbers to retrieved file contents. Use that to construct deep links (e.g. https://github.com/{owner}/{repo}/blob/{ref}/path/to/file#L{line_number}:L{line_number}).
 
@@ -119,7 +120,7 @@ def github_graphql(query: str, jq: str | None = DEFAULT_JQ):
     2. The user specifically requests it.
     3. You provide a jq filter to limit results (e.g. isGenerated field).
 
-    The core principle is to fetch as much relevant metadata as possible in a single query, rather than file contents.
+    The core principle is to fetch as much relevant metadata as possible in a single operation, rather than file contents.
     Before answering, make sure you've viewed the raw file on GitHub that resolves the user's request, and you should proactively provide the deep link to the code.
     """
 
@@ -161,11 +162,11 @@ def github_graphql(query: str, jq: str | None = DEFAULT_JQ):
 @mcp.tool(title="GitHub Code Search")
 def github_code_search(
     query: str,
-    extension: str | None = None,
-    filename: str | None = None,
-    owner: str | None = None,
-    repo: str | None = None,
-    language: str | None = None,
+    extension: str = Field(default_factory=str),
+    filename: str = Field(default_factory=str),
+    owner: str = Field(default_factory=str),
+    repo: str = Field(default_factory=str, description="Format: owner/repo"),
+    language: str = Field(default_factory=str),
     match_type: Literal["content", "path"] = "content",
 ):
     r"""
@@ -178,7 +179,7 @@ def github_code_search(
         if not owner:
             raise ToolError("Please provide the `repo` option in the format 'owner/repo'")
         repo = f"{owner}/{repo}"
-        owner = None
+        owner = ""
 
     if not any((extension, filename, owner, repo, language)) and len(query) - 3 * (query.count(" ") + query.count(".")) < 7:
         raise ToolError("Query too broad. Please refine your search.")
