@@ -1,5 +1,4 @@
-from ast import literal_eval
-from contextlib import suppress
+import re
 
 type JSON = dict[str, JSON] | list[JSON] | tuple[JSON, ...] | str | int | float | bool | None
 
@@ -146,22 +145,31 @@ def _serialize_scalar(value: str | int | float | bool | None):
     elif isinstance(value, bool):
         return "true" if value else "false"
     elif isinstance(value, str):
-        if value.lower() in ("null", "~", "true", "false", "yes", "no", "on", "off", ""):
-            return f'"{value}"'  # Avoid misinterpretation
-        with suppress(ValueError, SyntaxError, TypeError):
-            if not isinstance(literal_eval(value), str):
-                return f'"{value}"'
-        # Single-line string: quote if contains special chars or quotes
-        if any(c in value for c in ":[{}],&*#?|-<>!`@\n'\""):
-            # Prefer single quotes (simpler escaping rules in YAML)
-            # but must escape single quotes as ''
-            if "'" in value:
-                escaped = value.replace("'", "''")
-                return f"'{escaped}'"
-            return f"'{value}'"
-        return value
+        if not RE_NEEDS_ESCAPE.search(value):
+            return value
+        if "\\" not in value and value.count('"') < value.count("'"):
+            return f'"{value.replace('"', '\\"')}"'
+        return f"'{value.replace("'", "''")}'"
     else:
         return str(value)
+
+
+# Match patterns that require quotes for strings
+RE_NEEDS_ESCAPE = re.compile(
+    r"""
+    (?:
+      ^$  # empty string
+      | ^(?:null|~|true|false|yes|no|on|off)$  # keywords
+      | ^[-+]?(?:[0-9][0-9_]*)?$  # integers
+      | ^[-+]?(?:[0-9][0-9_]*)?\.[0-9_]*$  # floats
+      | ^[-+]?(?:[0-9][0-9_]*)?(?:\.[0-9_]*)?[eE][-+]?[0-9]+$  # scientific notation
+      | ^\.inf$|^\.nan$  # special floats
+      | ^\s|\s$  # leading or trailing whitespace
+      | [:\[\]{},&*#?|<>!`@'\"\t\r\n-]  # special characters
+    )
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
 
 
 __all__ = "JSON", "readable_yaml_dumps"
