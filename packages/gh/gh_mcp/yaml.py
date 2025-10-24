@@ -1,3 +1,6 @@
+from ast import literal_eval
+from contextlib import suppress
+
 type JSON = dict[str, JSON] | list[JSON] | tuple[JSON, ...] | str | int | float | bool | None
 
 
@@ -139,10 +142,15 @@ def _append_literal_block(value: str, lines: list[str], indent: int):
 def _serialize_scalar(value: str | int | float | bool | None):
     """Convert scalar values to YAML string representation."""
     if value is None:
-        return "null"
+        return "~"
     elif isinstance(value, bool):
         return "true" if value else "false"
     elif isinstance(value, str):
+        if value.lower() in ("null", "~", "true", "false", "yes", "no", "on", "off", ""):
+            return f'"{value}"'  # Avoid misinterpretation
+        with suppress(ValueError, SyntaxError, TypeError):
+            if not isinstance(literal_eval(value), str):
+                return f'"{value}"'
         # Single-line string: quote if contains special chars or quotes
         if any(c in value for c in ":[{}],&*#?|-<>!`@\n'\""):
             # Prefer single quotes (simpler escaping rules in YAML)
