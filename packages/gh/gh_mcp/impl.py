@@ -9,7 +9,7 @@ from pydantic import Field
 
 from .yaml import readable_yaml_dumps
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 mcp = FastMCP("gh", version=__version__, include_fastmcp_meta=False)
 
@@ -161,25 +161,23 @@ def github_graphql(query: str, jq: str = DEFAULT_JQ):
 
 @mcp.tool(title="GitHub Code Search")
 def github_code_search(
-    code_snippet: str,
+    code_snippet: str = Field(description="Not a fuzzy search. Grep exact code snippet you want to find. Modifiers or wildcards not supported."),
     extension: str = Field(default_factory=str),
     filename: str = Field(default_factory=str),
-    owner: str = Field(default_factory=str),
-    repo: str = Field(default_factory=str, description="Format: owner/repo"),
+    owner: list[str] = Field(default_factory=list),
+    repo: list[str] = Field(default_factory=list, description="Format: owner/repo"),
     language: str = Field(default_factory=str),
     match_type: Literal["content", "path"] = "content",
 ):
-    r"""
-    Don't use modifiers, use the options instead.
-    And you can't use these wildcard characters as part of your search code snippet:
-    . , : ; / \ ` ' " = * ! ? # $ & + ^ | ~ < > ( ) { } [ ] @
+    """
+    Search files on GitHub with code snippets.
+
+    Normally you should try different queries and combinations of filters until you get useful results.
+    If you are searching for something generic, try thinking in reverse about what the code might be, and search for that code snippet instead.
     """
 
-    if repo and "/" not in repo:
-        if not owner:
-            raise ToolError("Please provide the `repo` option in the format 'owner/repo'")
-        repo = f"{owner}/{repo}"
-        owner = ""
+    if any("/" not in i for i in repo):
+        raise ToolError("Please provide the `repo` option in the format 'owner/repo'")
 
     if not any((extension, filename, owner, repo, language)) and len(code_snippet) - 3 * (code_snippet.count(" ") + code_snippet.count(".")) < 7:
         raise ToolError("Query too broad. Please refine your search.")
@@ -190,10 +188,10 @@ def github_code_search(
         cmd += ["--extension", extension]
     if filename:
         cmd += ["--filename", filename]
-    if owner:
-        cmd += ["--owner", owner]
-    if repo:
-        cmd += ["--repo", repo]
+    for i in owner:
+        cmd += ["--owner", i]
+    for i in repo:
+        cmd += ["--repo", i]
     if language:
         cmd += ["--language", language]
 
