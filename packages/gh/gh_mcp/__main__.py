@@ -20,6 +20,11 @@ def main(argv: list[str] = argv[1:]):
         parser.add_argument("--token", help="Specify the GitHub token", metavar="GITHUB_TOKEN")
         args = parser.parse_args(argv)
 
+        if args.host != "localhost" or args.port is not None:
+            if args.stdio:
+                parser.error("Cannot use --host or --port with --stdio")
+            args.http = True
+
         if args.token:
             environ["GH_TOKEN"] = args.token
 
