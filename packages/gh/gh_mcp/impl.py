@@ -1,10 +1,12 @@
 from contextlib import suppress
 from json import JSONDecodeError, dumps, loads
+from os import environ
 from subprocess import CompletedProcess, run
 from typing import Literal
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
+from fastmcp.server.dependencies import get_http_headers
 from pydantic import Field
 
 from .yaml import readable_yaml_dumps
@@ -132,7 +134,7 @@ def github_graphql(query: str, jq: str = DEFAULT_JQ):
     ret: CompletedProcess = ...  # type: ignore
 
     for _ in range(3):  # Retry up to 3 times on network issues
-        ret = run(cmd, input=dumps({"query": query}, ensure_ascii=False), capture_output=True, text=True, encoding="utf-8")
+        ret = run(cmd, input=dumps({"query": query}, ensure_ascii=False), capture_output=True, text=True, encoding="utf-8", env=_get_env())
         if ret.returncode == 4:
             raise ToolError("[[ No GitHub credentials found. Please log in to gh CLI or provide --token parameter when starting this MCP server! ]]")
         if ret.returncode < 2:
@@ -202,7 +204,7 @@ def github_code_search(
 
     ret: CompletedProcess = ...  # type: ignore
     for _ in range(3):  # Retry up to 3 times on network issues
-        ret = run(cmd, capture_output=True, text=True, encoding="utf-8")
+        ret = run(cmd, capture_output=True, text=True, encoding="utf-8", env=_get_env())
         if ret.returncode == 4:
             raise ToolError("[[ No GitHub credentials found. Please log in to gh CLI or provide --token parameter when starting this MCP server! ]]")
         if ret.returncode < 2:
@@ -225,3 +227,8 @@ def github_code_search(
         item["fragments"] = [i["fragment"] for i in item.pop("textMatches")]
 
     return readable_yaml_dumps(data)
+
+
+def _get_env():
+    gh_token = get_http_headers().get("x-gh-token")
+    return environ | {"GH_TOKEN": gh_token} if gh_token else None
