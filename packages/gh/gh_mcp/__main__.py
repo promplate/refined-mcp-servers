@@ -31,7 +31,24 @@ def main(argv: list[str] = argv[1:]):
         from .impl import mcp
 
         if args.http:
-            mcp.run("http", show_banner=False, port=args.port, host=args.host)
+            from starlette.middleware import Middleware
+            from starlette.middleware.cors import CORSMiddleware
+            from uvicorn import Config, Server
+
+            app = mcp.http_app(
+                stateless_http=True,
+                json_response=True,
+                middleware=[
+                    Middleware(
+                        CORSMiddleware,
+                        allow_origins=["*"],
+                        allow_methods=["*"],
+                        allow_headers=["mcp-protocol-version", "mcp-session-id", "Authorization", "Content-Type"],
+                        expose_headers=["mcp-session-id"],
+                    )
+                ],
+            )
+            Server(Config(app, host=args.host, port=args.port or 8000, timeout_graceful_shutdown=0.1)).run()  # type: ignore
         else:
             mcp.run("stdio", show_banner=False)
 
