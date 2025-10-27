@@ -1,7 +1,7 @@
 from contextlib import suppress
 from json import JSONDecodeError, dumps, loads
 from os import environ
-from subprocess import CompletedProcess, run
+from subprocess import CompletedProcess
 from typing import Literal
 
 from fastmcp import FastMCP
@@ -9,9 +9,10 @@ from fastmcp.exceptions import ToolError
 from fastmcp.server.dependencies import get_http_headers
 from pydantic import Field
 
+from .utils import run_subcommand
 from .yaml import readable_yaml_dumps
 
-__version__ = "0.2.3"
+__version__ = "0.3.0"
 
 mcp = FastMCP("gh", version=__version__, include_fastmcp_meta=False)
 
@@ -43,7 +44,7 @@ def process:
 
 
 @mcp.tool(title="GitHub GraphQL")
-def github_graphql(query: str, jq: str = DEFAULT_JQ):
+async def github_graphql(query: str, jq: str = DEFAULT_JQ):
     """
     Execute GitHub GraphQL queries and mutations via gh CLI. Preferred over raw gh calls or other tools to interact with GitHub.
     When user uses any terms like find / search / read / browse / explore / research / investigate / analyze and if it may be related to a GitHub project, you should use this tool instead of any other tools or raw API / CLI calls.
@@ -134,7 +135,7 @@ def github_graphql(query: str, jq: str = DEFAULT_JQ):
     ret: CompletedProcess = ...  # type: ignore
 
     for _ in range(3):  # Retry up to 3 times on network issues
-        ret = run(cmd, input=dumps({"query": query}, ensure_ascii=False), capture_output=True, text=True, encoding="utf-8", env=_get_env())
+        ret = await run_subcommand(cmd, input=dumps({"query": query}, ensure_ascii=False), capture_output=True, text=True, encoding="utf-8", env=_get_env())
         if ret.returncode == 4:
             raise ToolError("[[ No GitHub credentials found. Please log in to gh CLI or provide --token parameter when starting this MCP server! ]]")
         if ret.returncode < 2:
@@ -162,7 +163,7 @@ def github_graphql(query: str, jq: str = DEFAULT_JQ):
 
 
 @mcp.tool(title="GitHub Code Search")
-def github_code_search(
+async def github_code_search(
     code_snippet: str = Field(description="Not a fuzzy search. Grep exact code snippet you want to find. Modifiers or wildcards not supported."),
     extension: str = Field(default_factory=str),
     filename: str = Field(default_factory=str),
@@ -204,7 +205,7 @@ def github_code_search(
 
     ret: CompletedProcess = ...  # type: ignore
     for _ in range(3):  # Retry up to 3 times on network issues
-        ret = run(cmd, capture_output=True, text=True, encoding="utf-8", env=_get_env())
+        ret = await run_subcommand(cmd, capture_output=True, text=True, encoding="utf-8", env=_get_env())
         if ret.returncode == 4:
             raise ToolError("[[ No GitHub credentials found. Please log in to gh CLI or provide --token parameter when starting this MCP server! ]]")
         if ret.returncode < 2:
