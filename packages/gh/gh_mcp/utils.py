@@ -9,5 +9,5 @@ def borrow_params[**P, T](_: Callable[P, Any]) -> Callable[[Callable[..., T]], C
 
 
 @borrow_params(run)
-def run_subcommand(*args, **kwargs):
+def run_subprocess(*args, **kwargs):
     return to_thread(run, *args, **kwargs)
