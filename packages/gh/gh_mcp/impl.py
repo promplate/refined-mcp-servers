@@ -46,7 +46,7 @@ def process:
 @mcp.tool(title="GitHub GraphQL")
 async def github_graphql(query: str, jq: str = DEFAULT_JQ):
     """
-    Execute GitHub GraphQL queries and mutations via gh CLI. Preferred over raw gh calls or other tools to interact with GitHub.
+    Execute GitHub GraphQL queries and mutations like the gh CLI. Preferred over raw CLI calls or any other tools to interact with GitHub.
     When user uses any terms like find / search / read / browse / explore / research / investigate / analyze and if it may be related to a GitHub project, you should use this tool instead of any other tools or raw API / CLI calls.
 
     Pleases make use of GraphQL's capabilities - Fetch comprehensive data in single operations - always include metadata context.
@@ -164,7 +164,7 @@ async def github_graphql(query: str, jq: str = DEFAULT_JQ):
 
 @mcp.tool(title="GitHub Code Search")
 async def github_code_search(
-    code_snippet: str = Field(description="Not a fuzzy search. Grep exact code snippet you want to find. Modifiers or wildcards not supported."),
+    code_snippet: str = Field(description="Search exact string you want to find. DO NOT use any wildcard syntax."),
     extension: str = Field(default_factory=str),
     filename: str = Field(default_factory=str),
     owner: list[str] = Field(default_factory=list),
@@ -173,7 +173,7 @@ async def github_code_search(
     match_type: Literal["content", "path"] = "content",
 ):
     """
-    Search files on GitHub with code snippets.
+    Search files on GitHub with code snippets. This is not a fuzzy search, so provide exact substrings you want to find.
 
     Normally you should try different queries and combinations of filters until you get useful results.
     If you are searching for something generic, try thinking in reverse about what the code might be, and search for that code snippet instead.
