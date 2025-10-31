@@ -12,14 +12,9 @@ def borrow_params[**P, T](_: Callable[P, Any]) -> Callable[[Callable[..., T]], C
 
 
 @borrow_params(run)
-def _run_subprocess(*args, **kwargs):
-    return to_thread(run, *args, **kwargs)
-
-
-@borrow_params(run)
 async def run_subprocess(*args, **kwargs):
     for retry in count():
-        ret = await _run_subprocess(*args, **kwargs)
+        ret = await to_thread(run, *args, **kwargs)
         if ret.returncode == 4:
             raise ToolError("[[ No GitHub credentials found. Please log in to gh CLI or provide --token parameter when starting this MCP server! ]]")
         if ret.returncode < 2:
