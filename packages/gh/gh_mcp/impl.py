@@ -1,7 +1,6 @@
 from contextlib import suppress
 from json import JSONDecodeError, dumps, loads
 from os import environ
-from subprocess import CompletedProcess
 from typing import Literal
 
 from fastmcp import FastMCP
@@ -132,23 +131,7 @@ async def github_graphql(query: str, jq: str = DEFAULT_JQ):
     if jq:
         cmd.extend(["--jq", jq])
 
-    ret: CompletedProcess = ...  # type: ignore
-
-    for _ in range(3):  # Retry up to 3 times on network issues
-        ret = await run_subprocess(cmd, input=dumps({"query": query}, ensure_ascii=False), capture_output=True, text=True, encoding="utf-8", env=_get_env())
-        if ret.returncode == 4:
-            raise ToolError("[[ No GitHub credentials found. Please log in to gh CLI or provide --token parameter when starting this MCP server! ]]")
-
-        # transient network issue
-        if ret.stderr.strip() == 'Post "https://api.github.com/graphql": EOF':
-            continue
-
-        if ret.returncode < 2:
-            is_error = ret.returncode == 1
-            break
-    else:
-        msg = f"gh returned non-zero exit code {ret.returncode}"
-        raise ToolError(f"{msg}:\n{details}" if (details := ret.stdout or ret.stderr) else msg)
+    ret = await run_subprocess(cmd, input=dumps({"query": query}, ensure_ascii=False), capture_output=True, text=True, encoding="utf-8", env=_get_env())
 
     result = ret.stdout or ret.stderr or ""
 
@@ -160,7 +143,7 @@ async def github_graphql(query: str, jq: str = DEFAULT_JQ):
     with suppress(JSONDecodeError):
         data = loads(result)
 
-        if is_error:
+        if ret.returncode:
             raise ToolError(readable_yaml_dumps(data))
         return readable_yaml_dumps(data)
 
@@ -208,19 +191,9 @@ async def github_code_search(
     else:
         cmd += ["--json", "url,textMatches"]
 
-    ret: CompletedProcess = ...  # type: ignore
-    for _ in range(3):  # Retry up to 3 times on network issues
-        ret = await run_subprocess(cmd, capture_output=True, text=True, encoding="utf-8", env=_get_env())
-        if ret.returncode == 4:
-            raise ToolError("[[ No GitHub credentials found. Please log in to gh CLI or provide --token parameter when starting this MCP server! ]]")
-        if ret.returncode < 2:
-            is_error = ret.returncode == 1
-            break
-    else:
-        msg = f"gh returned non-zero exit code {ret.returncode}"
-        raise ToolError(f"{msg}:\n{details}" if (details := ret.stdout or ret.stderr) else msg)
+    ret = await run_subprocess(cmd, capture_output=True, text=True, encoding="utf-8", env=_get_env())
 
-    if is_error:
+    if ret.returncode:
         raise ToolError(ret.stdout or ret.stderr or "[[ An unknown error occurred during the code search. ]]")
 
     if match_type == "path":
