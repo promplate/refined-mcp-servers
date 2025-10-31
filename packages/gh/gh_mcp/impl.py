@@ -138,6 +138,11 @@ async def github_graphql(query: str, jq: str = DEFAULT_JQ):
         ret = await run_subprocess(cmd, input=dumps({"query": query}, ensure_ascii=False), capture_output=True, text=True, encoding="utf-8", env=_get_env())
         if ret.returncode == 4:
             raise ToolError("[[ No GitHub credentials found. Please log in to gh CLI or provide --token parameter when starting this MCP server! ]]")
+
+        # transient network issue
+        if ret.stderr.strip() == 'Post "https://api.github.com/graphql": EOF':
+            continue
+
         if ret.returncode < 2:
             is_error = ret.returncode == 1
             break
