@@ -41,8 +41,12 @@ def _serialize_dict(data: dict, lines: list[str], indent: int, prefix: str):
         key_str = _serialize_scalar(key)
 
         if isinstance(value, (dict, list, tuple)):
-            lines.append(f"{prefix}{key_str}:\n")
-            _serialize(value, lines, indent + 1)
+            if not value:
+                inline_repr = "{}" if isinstance(value, dict) else "[]"
+                lines.append(f"{prefix}{key_str}: {inline_repr}\n")
+            else:
+                lines.append(f"{prefix}{key_str}:\n")
+                _serialize(value, lines, indent + 1)
         elif isinstance(value, str) and "\n" in value:
             lines.append(f"{prefix}{key_str}:")
             _append_literal_block(value, lines, indent + 1)

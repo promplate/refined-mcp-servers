@@ -11,7 +11,7 @@ from pydantic import Field
 from .utils import run_subprocess
 from .yaml import readable_yaml_dumps
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 mcp = FastMCP("gh", version=__version__, include_fastmcp_meta=False)
 
