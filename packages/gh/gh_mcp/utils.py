@@ -1,9 +1,9 @@
-from asyncio import to_thread
 from collections.abc import Callable
 from itertools import count
-from subprocess import run
+from subprocess import PIPE, CompletedProcess
 from typing import Any
 
+from anyio import run_process
 from fastmcp.exceptions import ToolError
 
 
@@ -11,10 +11,11 @@ def borrow_params[**P, T](_: Callable[P, Any]) -> Callable[[Callable[..., T]], C
     return lambda f: f
 
 
-@borrow_params(run)
-async def run_subprocess(*args, **kwargs):
+@borrow_params(run_process)
+async def run_subprocess(command: list[str], **kwargs):
     for retry in count():
-        ret = await to_thread(run, *args, **kwargs)
+        r = await run_process(command, check=False, stdout=PIPE, stderr=PIPE, **kwargs)
+        ret = CompletedProcess(command, r.returncode, r.stdout.decode(), r.stderr.decode())
         if ret.returncode == 4:
             raise ToolError("[[ No GitHub credentials found. Please log in to gh CLI or provide --token parameter when starting this MCP server! ]]")
         if ret.returncode < 2:

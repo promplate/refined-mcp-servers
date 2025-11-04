@@ -11,7 +11,7 @@ from pydantic import Field
 from .utils import run_subprocess
 from .yaml import readable_yaml_dumps
 
-__version__ = "0.3.3"
+__version__ = "0.3.4"
 
 mcp = FastMCP("gh", version=__version__, include_fastmcp_meta=False)
 
@@ -131,7 +131,7 @@ async def github_graphql(query: str, jq: str = DEFAULT_JQ):
     if jq:
         cmd.extend(["--jq", jq])
 
-    ret = await run_subprocess(cmd, input=dumps({"query": query}, ensure_ascii=False), capture_output=True, text=True, encoding="utf-8", env=_get_env())
+    ret = await run_subprocess(cmd, input=dumps({"query": query}, ensure_ascii=False).encode(), env=_get_env())
 
     result = ret.stdout or ret.stderr or ""
 
@@ -191,7 +191,7 @@ async def github_code_search(
     else:
         cmd += ["--json", "url,textMatches"]
 
-    ret = await run_subprocess(cmd, capture_output=True, text=True, encoding="utf-8", env=_get_env())
+    ret = await run_subprocess(cmd, env=_get_env())
 
     if ret.returncode:
         raise ToolError(ret.stdout or ret.stderr or "[[ An unknown error occurred during the code search. ]]")
