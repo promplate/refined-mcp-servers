@@ -6,12 +6,13 @@ from typing import Literal
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.dependencies import get_http_headers
+from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from .utils import run_subprocess
 from .yaml import readable_yaml_dumps
 
-__version__ = "0.3.4"
+__version__ = "0.3.5"
 
 mcp = FastMCP("gh", version=__version__, include_fastmcp_meta=False)
 
@@ -150,7 +151,7 @@ async def github_graphql(query: str, jq: str = DEFAULT_JQ):
     return result
 
 
-@mcp.tool(title="GitHub Code Search")
+@mcp.tool(title="GitHub Code Search", annotations=ToolAnnotations(readOnlyHint=True))
 async def github_code_search(
     code_snippet: str = Field(description="Search exact string you want to find. DO NOT use any wildcard syntax."),
     extension: str = Field(default_factory=str),
