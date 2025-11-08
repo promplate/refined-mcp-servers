@@ -14,6 +14,7 @@ def borrow_params[**P, T](_: Callable[P, Any]) -> Callable[[Callable[..., T]], C
 @borrow_params(run_process)
 async def run_subprocess(command: list[str], **kwargs):
     for retry in count():
+        kwargs["stdin"] = None if "input" in kwargs else PIPE  # avoid blocking on stdin
         r = await run_process(command, check=False, stdout=PIPE, stderr=PIPE, **kwargs)
         ret = CompletedProcess(command, r.returncode, r.stdout.decode(), r.stderr.decode())
         if ret.returncode == 4:
