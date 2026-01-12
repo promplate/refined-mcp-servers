@@ -118,28 +118,34 @@ def _append_literal_block(value: str, lines: list[str], indent: int):
 
     Chomping indicator selection:
     - |- (strip): If no trailing newline
-    - | (clip): If has single trailing newline (default)
-    - |+ (keep): If has multiple trailing newlines
+    - | (clip): If has single trailing newline with content
+    - |+ (keep): If has multiple trailing newlines, or only newlines (no content)
     """
     block_prefix = "  " * indent
 
     # Determine chomping indicator
-    trailing_newlines = len(value) - len(value.rstrip("\n"))
+    stripped_content = value.rstrip("\n")
+    trailing_newlines = len(value) - len(stripped_content)
     if trailing_newlines == 0:
         # No trailing newlines: use strip
         lines.append(" |-\n")
         stripped_value = value
-    elif trailing_newlines == 1:
-        # Single trailing newline: use clip (default)
+    elif trailing_newlines == 1 and stripped_content:
+        # Single trailing newline with content: use clip (default)
         lines.append(" |\n")
-        stripped_value = value.rstrip("\n")
+        stripped_value = stripped_content
     else:
-        # Multiple trailing newlines: use keep
+        # Multiple trailing newlines, or only newlines (no content): use keep
         lines.append(" |+\n")
         stripped_value = value
 
     # Output content lines
-    lines.extend(f"{block_prefix}{line}\n" for line in stripped_value.split("\n"))
+    # Note: split("\n") on strings ending with \n produces a trailing empty
+    # string that would add an extra newline when we append \n to each line
+    content_lines = stripped_value.split("\n")
+    if stripped_value.endswith("\n"):
+        content_lines = content_lines[:-1]
+    lines.extend(f"{block_prefix}{line}\n" for line in content_lines)
 
 
 def _serialize_scalar(value: str | int | float | bool | None):
