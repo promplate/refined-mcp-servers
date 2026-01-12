@@ -43,7 +43,7 @@ def main(argv: list[str] = argv[1:]):
                         CORSMiddleware,
                         allow_origins=["*"],
                         allow_methods=["*"],
-                        allow_headers=["mcp-protocol-version", "mcp-session-id", "Authorization", "Content-Type"],
+                        allow_headers=["content-type", "mcp-protocol-version", "x-custom-auth-headers", "x-gh-token"],
                         expose_headers=["mcp-session-id"],
                     )
                 ],
