@@ -39,5 +39,5 @@ reportUnnecessaryTypeIgnoreComment = "error"
 
 [dependency-groups]
 dev = [
-    "mcp-hmr>=0.0.2.1",
+    "mcp-hmr>=0.0.3.5",
 ]
