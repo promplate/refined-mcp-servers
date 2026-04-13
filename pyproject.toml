@@ -4,7 +4,7 @@ version = "0"
 requires-python = ">=3.12"
 dependencies = [
     "gh-mcp",
-    "ruff~=0.15.6",
+    "ruff~=0.15.10",
 ]
 
 [tool.uv.sources]
