@@ -12,7 +12,7 @@ from pydantic import Field
 from .utils import run_subprocess
 from .yaml import readable_yaml_dumps
 
-__version__ = "0.3.6"
+__version__ = "0.3.7"
 
 mcp = FastMCP("gh", version=__version__, include_fastmcp_meta=False)
 
@@ -27,7 +27,7 @@ def process:
     if type == "object" then
         if has("text") and (.text | type == "string") then
             if (.text | split("\n") | length) > 10 then
-                del(.text) + {lines: (.text | split("\n") | to_entries | map("\(.key + 1): \(.value)") | join("\n"))}
+                del(.text) + {lines: (.text | split("\n") | to_entries | map("\(.key + 1)\t\(.value)") | join("\n"))}
             else
                 .
             end
