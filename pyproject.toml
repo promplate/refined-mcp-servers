@@ -4,7 +4,7 @@ version = "0"
 requires-python = ">=3.12"
 dependencies = [
     "gh-mcp",
-    "ruff~=0.15.6",
+    "ruff~=0.16.0",
 ]
 
 [tool.uv.sources]
@@ -41,3 +41,6 @@ reportUnnecessaryTypeIgnoreComment = "error"
 dev = [
     "mcp-hmr>=0.0.2.1",
 ]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["pydantic.Field"]
