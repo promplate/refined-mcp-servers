@@ -148,7 +148,7 @@ def _append_literal_block(value: str, lines: list[str], indent: int):
     lines.extend(f"{block_prefix}{line}\n" for line in content_lines)
 
 
-def _serialize_scalar(value: str | int | float | bool | None):
+def _serialize_scalar(value: str | float | bool | None):
     """Convert scalar values to YAML string representation."""
     if value is None:
         return "~"
