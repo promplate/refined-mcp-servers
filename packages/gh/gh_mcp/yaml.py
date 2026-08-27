@@ -3,6 +3,17 @@ import re
 type JSON = dict[str, JSON] | list[JSON] | tuple[JSON, ...] | str | int | float | bool | None
 
 
+# A literal block cannot carry these: YAML forbids most C0 controls outright, and reads
+# U+2028/2029 as line breaks, which silently restructures the document. Such a string is
+# written as a double-quoted scalar instead -- the only style that can carry an escape.
+RE_UNPRINTABLE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f\u2028\u2029]")
+
+
+def _quote_double(value: str) -> str:
+    out = value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+    return '"' + RE_UNPRINTABLE.sub(lambda m: f"\\u{ord(m.group()):04x}", out) + '"'
+
+
 def readable_yaml_dumps(data: JSON):
     """
     Minimal YAML serializer optimized for readability.
@@ -47,7 +58,7 @@ def _serialize_dict(data: dict, lines: list[str], indent: int, prefix: str):
             else:
                 lines.append(f"{prefix}{key_str}:\n")
                 _serialize(value, lines, indent + 1)
-        elif isinstance(value, str) and "\n" in value:
+        elif isinstance(value, str) and "\n" in value and not RE_UNPRINTABLE.search(value):
             lines.append(f"{prefix}{key_str}:")
             _append_literal_block(value, lines, indent + 1)
         else:
@@ -72,7 +83,7 @@ def _serialize_list(data: list | tuple, lines: list[str], indent: int, prefix: s
             else:
                 lines.append(f"{prefix}-\n")
                 _serialize(item, lines, indent + 1)
-        elif isinstance(item, str) and "\n" in item:
+        elif isinstance(item, str) and "\n" in item and not RE_UNPRINTABLE.search(item):
             lines.append(f"{prefix}-")
             _append_literal_block(item, lines, indent + 1)
         else:
@@ -96,7 +107,7 @@ def _serialize_dict_in_list(data: dict, lines: list[str], indent: int, prefix: s
             else:
                 lines.append(f"{line_prefix}{key_str}:\n")
                 _serialize(value, lines, indent + 2)
-        elif isinstance(value, str) and "\n" in value:
+        elif isinstance(value, str) and "\n" in value and not RE_UNPRINTABLE.search(value):
             lines.append(f"{line_prefix}{key_str}:")
             _append_literal_block(value, lines, indent + 2)
         else:
@@ -105,7 +116,7 @@ def _serialize_dict_in_list(data: dict, lines: list[str], indent: int, prefix: s
 
 def _serialize_string(value: str, lines: list[str], prefix: str):
     """Serialize a string value (standalone, not as dict/list value)."""
-    if "\n" in value:
+    if "\n" in value and not RE_UNPRINTABLE.search(value):
         lines.append(f"{prefix}")
         _append_literal_block(value, lines, indent=1)
     else:
@@ -155,6 +166,8 @@ def _serialize_scalar(value: str | float | bool | None):
     elif isinstance(value, bool):
         return "true" if value else "false"
     elif isinstance(value, str):
+        if RE_UNPRINTABLE.search(value) or "\n" in value:
+            return _quote_double(value)
         if not RE_NEEDS_ESCAPE.search(value):
             return value
         if "\\" not in value and value.count('"') < value.count("'"):
