@@ -131,6 +131,12 @@ def _append_literal_block(value: str, lines: list[str], indent: int):
     - |- (strip): If no trailing newline
     - | (clip): If has single trailing newline with content
     - |+ (keep): If has multiple trailing newlines, or only newlines (no content)
+
+    An explicit indentation indicator is added when the content's own first line starts
+    with a space. YAML otherwise takes that line's indentation as the block's own, so
+    every following line is less indented than the block claims and the block ends there,
+    mid-value. The indicator counts from the parent node, and every caller opens exactly
+    one level, so it is always 2.
     """
     block_prefix = "  " * indent
 
@@ -139,16 +145,18 @@ def _append_literal_block(value: str, lines: list[str], indent: int):
     trailing_newlines = len(value) - len(stripped_content)
     if trailing_newlines == 0:
         # No trailing newlines: use strip
-        lines.append(" |-\n")
+        chomp = "-"
         stripped_value = value
     elif trailing_newlines == 1 and stripped_content:
         # Single trailing newline with content: use clip (default)
-        lines.append(" |\n")
+        chomp = ""
         stripped_value = stripped_content
     else:
         # Multiple trailing newlines, or only newlines (no content): use keep
-        lines.append(" |+\n")
+        chomp = "+"
         stripped_value = value
+
+    lines.append(f" |{'2' if stripped_value.startswith(' ') else ''}{chomp}\n")
 
     # Output content lines
     # Note: split("\n") on strings ending with \n produces a trailing empty
