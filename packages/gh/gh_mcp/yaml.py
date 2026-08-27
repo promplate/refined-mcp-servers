@@ -3,10 +3,10 @@ import re
 type JSON = dict[str, JSON] | list[JSON] | tuple[JSON, ...] | str | int | float | bool | None
 
 
-# A literal block cannot carry these: YAML forbids most C0 controls outright, and reads
-# U+2028/2029 as line breaks, which silently restructures the document. Such a string is
+# A literal block cannot carry these: YAML forbids the C0 and C1 control ranges outright,
+# and reads U+0085/2028/2029 as line breaks, which silently restructures the document. Such a string is
 # written as a double-quoted scalar instead -- the only style that can carry an escape.
-RE_UNPRINTABLE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f\u2028\u2029]")
+RE_UNPRINTABLE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f\u2028\u2029]")
 
 
 def _quote_double(value: str) -> str:
