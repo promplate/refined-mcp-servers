@@ -4,8 +4,9 @@ type JSON = dict[str, JSON] | list[JSON] | tuple[JSON, ...] | str | int | float 
 
 
 # What a literal block cannot carry. Such a string is written as a double-quoted scalar
-# instead -- the only style that can carry an escape, and for the last three ranges the
-# only way to carry them at all: the reader rejects those wherever they appear.
+# instead -- the only style that can carry an escape, and for everything below U+2029 the
+# only way to carry it at all: the reader rejects those wherever they appear. The BOM is
+# the odd one out; it survives everywhere except the one position that matters.
 RE_UNPRINTABLE = re.compile(
     r"""
     (?:
@@ -14,6 +15,7 @@ RE_UNPRINTABLE = re.compile(
       | [\u2028\u2029]  # line and paragraph separators, also read as line breaks
       | [\ud800-\udfff]  # surrogates, which reach a str only unpaired
       | [\ufffe\uffff]  # the two noncharacters the spec names, not the whole class
+      | \ufeff  # BOM, read as an encoding signature and dropped when it opens the stream
     )
     """,
     re.VERBOSE,
