@@ -10,7 +10,8 @@ type JSON = dict[str, JSON] | list[JSON] | tuple[JSON, ...] | str | int | float 
 RE_UNPRINTABLE = re.compile(
     r"""
     (?:
-      [\x00-\x08\x0b-\x1f]  # C0 controls, less the three YAML allows: TAB, LF, CR
+      [\x00-\x08\x0b-\x1f]  # C0 controls; TAB and LF are the only two let through, CR is
+                            # not -- YAML folds it into LF, so `a\r\nb` returns as `a\nb`
       | [\x7f-\x9f]  # DEL and the C1 controls -- U+0085 NEL reads as a line break
       | [\u2028\u2029]  # line and paragraph separators, also read as line breaks
       | [\ud800-\udfff]  # surrogates, which reach a str only unpaired
