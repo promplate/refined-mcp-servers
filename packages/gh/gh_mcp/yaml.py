@@ -141,10 +141,6 @@ def _append_literal_block(value: str, lines: list[str], indent: int):
     - |- (strip): If no trailing newline
     - | (clip): If has single trailing newline with content
     - |+ (keep): If has multiple trailing newlines, or only newlines (no content)
-
-    The indentation indicator is emitted when *any* line starts with a space, not just the
-    first: YAML infers block indentation from the first non-empty line. It counts from the
-    parent node, so it is always 2.
     """
     block_prefix = "  " * indent
 
@@ -164,6 +160,7 @@ def _append_literal_block(value: str, lines: list[str], indent: int):
         chomp = "+"
         stripped_value = value
 
+    # any line, not just the first: YAML infers block indentation from the first non-empty one, and 2 counts from the parent node
     needs_indicator = any(line.startswith(" ") for line in stripped_value.split("\n"))
     lines.append(f" |{'2' if needs_indicator else ''}{chomp}\n")
 
