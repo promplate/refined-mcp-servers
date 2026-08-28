@@ -12,7 +12,7 @@ RE_UNPRINTABLE = re.compile(
       | [\u2028\u2029]
       | [\ud800-\udfff]
       | [\ufffe\uffff]
-      | \ufeff  # only at offset 0, where it reads as an encoding signature
+      | \ufeff  # an encoding signature at offset 0; position is not checked, so escaped anywhere
     )
     """,
     re.VERBOSE,
@@ -31,7 +31,8 @@ def readable_yaml_dumps(data: JSON):
     Uses literal block style (|) for all multi-line strings.
     Single-line strings are output without quotes when possible.
 
-    Note: Generated output is for display only, not meant to be parsed.
+    Note: output is optimised for reading, but must stay parseable -- `yaml.safe_load`
+    round-trips every value it is given.
     """
     lines: list[str] = []
     _serialize(data, lines, indent=0)
@@ -160,7 +161,8 @@ def _append_literal_block(value: str, lines: list[str], indent: int):
         chomp = "+"
         stripped_value = value
 
-    # any line, not just the first: YAML infers block indentation from the first non-empty one, and 2 counts from the parent node
+    # deliberately over-fires: YAML reads the indentation off the first non-empty line, but
+    # deciding which line that is needs YAML's notion of empty, not `str.strip()`'s
     needs_indicator = any(line.startswith(" ") for line in stripped_value.split("\n"))
     lines.append(f" |{'2' if needs_indicator else ''}{chomp}\n")
 
