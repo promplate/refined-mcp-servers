@@ -3,6 +3,27 @@ import re
 type JSON = dict[str, JSON] | list[JSON] | tuple[JSON, ...] | str | int | float | bool | None
 
 
+# Escaped into a double-quoted scalar; a literal block cannot carry these.
+RE_UNPRINTABLE = re.compile(
+    r"""
+    (?:
+      [\x00-\x08\x0b-\x1f]  # CR included -- YAML folds it into LF
+      | [\x7f-\x9f]
+      | [\u2028\u2029]
+      | [\ud800-\udfff]
+      | [\ufffe\uffff]
+      | \ufeff  # an encoding signature at offset 0; position is not checked, so escaped anywhere
+    )
+    """,
+    re.VERBOSE,
+)
+
+
+def _quote_double(value: str) -> str:
+    out = value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+    return '"' + RE_UNPRINTABLE.sub(lambda m: f"\\u{ord(m.group()):04x}", out) + '"'
+
+
 def readable_yaml_dumps(data: JSON):
     """
     Minimal YAML serializer optimized for readability.
@@ -10,7 +31,8 @@ def readable_yaml_dumps(data: JSON):
     Uses literal block style (|) for all multi-line strings.
     Single-line strings are output without quotes when possible.
 
-    Note: Generated output is for display only, not meant to be parsed.
+    Note: output is optimised for reading, but must stay parseable -- `yaml.safe_load`
+    round-trips every value it is given.
     """
     lines: list[str] = []
     _serialize(data, lines, indent=0)
@@ -47,7 +69,7 @@ def _serialize_dict(data: dict, lines: list[str], indent: int, prefix: str):
             else:
                 lines.append(f"{prefix}{key_str}:\n")
                 _serialize(value, lines, indent + 1)
-        elif isinstance(value, str) and "\n" in value:
+        elif isinstance(value, str) and "\n" in value and not RE_UNPRINTABLE.search(value):
             lines.append(f"{prefix}{key_str}:")
             _append_literal_block(value, lines, indent + 1)
         else:
@@ -72,7 +94,7 @@ def _serialize_list(data: list | tuple, lines: list[str], indent: int, prefix: s
             else:
                 lines.append(f"{prefix}-\n")
                 _serialize(item, lines, indent + 1)
-        elif isinstance(item, str) and "\n" in item:
+        elif isinstance(item, str) and "\n" in item and not RE_UNPRINTABLE.search(item):
             lines.append(f"{prefix}-")
             _append_literal_block(item, lines, indent + 1)
         else:
@@ -96,7 +118,7 @@ def _serialize_dict_in_list(data: dict, lines: list[str], indent: int, prefix: s
             else:
                 lines.append(f"{line_prefix}{key_str}:\n")
                 _serialize(value, lines, indent + 2)
-        elif isinstance(value, str) and "\n" in value:
+        elif isinstance(value, str) and "\n" in value and not RE_UNPRINTABLE.search(value):
             lines.append(f"{line_prefix}{key_str}:")
             _append_literal_block(value, lines, indent + 2)
         else:
@@ -105,7 +127,7 @@ def _serialize_dict_in_list(data: dict, lines: list[str], indent: int, prefix: s
 
 def _serialize_string(value: str, lines: list[str], prefix: str):
     """Serialize a string value (standalone, not as dict/list value)."""
-    if "\n" in value:
+    if "\n" in value and not RE_UNPRINTABLE.search(value):
         lines.append(f"{prefix}")
         _append_literal_block(value, lines, indent=1)
     else:
@@ -128,16 +150,21 @@ def _append_literal_block(value: str, lines: list[str], indent: int):
     trailing_newlines = len(value) - len(stripped_content)
     if trailing_newlines == 0:
         # No trailing newlines: use strip
-        lines.append(" |-\n")
+        chomp = "-"
         stripped_value = value
     elif trailing_newlines == 1 and stripped_content:
         # Single trailing newline with content: use clip (default)
-        lines.append(" |\n")
+        chomp = ""
         stripped_value = stripped_content
     else:
         # Multiple trailing newlines, or only newlines (no content): use keep
-        lines.append(" |+\n")
+        chomp = "+"
         stripped_value = value
+
+    # deliberately over-fires: YAML reads the indentation off the first non-empty line, but
+    # deciding which line that is needs YAML's notion of empty, not `str.strip()`'s
+    needs_indicator = any(line.startswith(" ") for line in stripped_value.split("\n"))
+    lines.append(f" |{'2' if needs_indicator else ''}{chomp}\n")
 
     # Output content lines
     # Note: split("\n") on strings ending with \n produces a trailing empty
@@ -155,6 +182,8 @@ def _serialize_scalar(value: str | float | bool | None):
     elif isinstance(value, bool):
         return "true" if value else "false"
     elif isinstance(value, str):
+        if RE_UNPRINTABLE.search(value) or "\n" in value:
+            return _quote_double(value)
         if not RE_NEEDS_ESCAPE.search(value):
             return value
         if "\\" not in value and value.count('"') < value.count("'"):
@@ -170,11 +199,13 @@ RE_NEEDS_ESCAPE = re.compile(
     (?:
       ^$  # empty string
       | ^(?:null|~|true|false|yes|no|on|off)$  # keywords
+      | ^[-+]?(?:0x[0-9a-f_]+|0o[0-7_]+|0b[01_]+)$  # hex/octal/binary integers
       | ^[-+]?(?:[0-9][0-9_]*)?$  # integers
       | ^[-+]?(?:[0-9][0-9_]*)?\.[0-9_]*$  # floats
       | ^[-+]?(?:[0-9][0-9_]*)?(?:\.[0-9_]*)?[eE][-+]?[0-9]+$  # scientific notation
       | ^\.inf$|^\.nan$  # special floats
       | ^\s|\s$  # leading or trailing whitespace
+      | ^%  # directive indicator, only at the start of a scalar
       | [:\[\]{},&*#?|<>!`@'\"\t\r\n-]  # special characters
     )
     """,
