@@ -3,20 +3,16 @@ import re
 type JSON = dict[str, JSON] | list[JSON] | tuple[JSON, ...] | str | int | float | bool | None
 
 
-# What a literal block cannot carry. Such a string is written as a double-quoted scalar
-# instead -- the only style that can carry an escape, and for everything below U+2029 the
-# only way to carry it at all: the reader rejects those wherever they appear. The BOM is
-# the odd one out; it survives everywhere except the one position that matters.
+# Escaped into a double-quoted scalar; a literal block cannot carry these.
 RE_UNPRINTABLE = re.compile(
     r"""
     (?:
-      [\x00-\x08\x0b-\x1f]  # C0 controls; TAB and LF are the only two let through, CR is
-                            # not -- YAML folds it into LF, so `a\r\nb` returns as `a\nb`
-      | [\x7f-\x9f]  # DEL and the C1 controls -- U+0085 NEL reads as a line break
-      | [\u2028\u2029]  # line and paragraph separators, also read as line breaks
-      | [\ud800-\udfff]  # surrogates, which reach a str only unpaired
-      | [\ufffe\uffff]  # the two noncharacters the spec names, not the whole class
-      | \ufeff  # BOM, read as an encoding signature and dropped when it opens the stream
+      [\x00-\x08\x0b-\x1f]  # CR included -- YAML folds it into LF
+      | [\x7f-\x9f]
+      | [\u2028\u2029]
+      | [\ud800-\udfff]
+      | [\ufffe\uffff]
+      | \ufeff  # only at offset 0, where it reads as an encoding signature
     )
     """,
     re.VERBOSE,
@@ -146,15 +142,9 @@ def _append_literal_block(value: str, lines: list[str], indent: int):
     - | (clip): If has single trailing newline with content
     - |+ (keep): If has multiple trailing newlines, or only newlines (no content)
 
-    An explicit indentation indicator is added when any line starts with a space. YAML
-    otherwise infers the block's indentation from its first non-empty line, and that line
-    is not always the first one nor the one a naive check picks: a value beginning with a
-    blank line hides its indentation from `startswith`, and "non-empty" is YAML's own
-    definition, not Python's -- a line of spaces, a line holding a tab, and one holding
-    U+00A0 each land on a different side of `str.strip()`. Asking whether any line could
-    be read as indentation removes the inference instead of racing it. The indicator
-    counts from the parent node, and every caller opens exactly one level, so it is
-    always 2.
+    The indentation indicator is emitted when *any* line starts with a space, not just the
+    first: YAML infers block indentation from the first non-empty line. It counts from the
+    parent node, so it is always 2.
     """
     block_prefix = "  " * indent
 
