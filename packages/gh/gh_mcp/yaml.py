@@ -203,7 +203,8 @@ RE_NEEDS_ESCAPE = re.compile(
       | ^[-+]?(?:[0-9][0-9_]*)?(?:\.[0-9_]*)?[eE][-+]?[0-9]+$  # scientific notation
       | ^\.inf$|^\.nan$  # special floats
       | ^\s|\s$  # leading or trailing whitespace
-      | [:\[\]{},&*#?|<>!`@%'\"\t\r\n-]  # special characters
+      | ^%  # directive indicator, only at the start of a scalar
+      | [:\[\]{},&*#?|<>!`@'\"\t\r\n-]  # special characters
     )
     """,
     re.IGNORECASE | re.VERBOSE,
