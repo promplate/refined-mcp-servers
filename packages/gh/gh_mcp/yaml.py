@@ -1,4 +1,5 @@
 import re
+from math import isinf, isnan
 
 type JSON = dict[str, JSON] | list[JSON] | tuple[JSON, ...] | str | int | float | bool | None
 
@@ -189,6 +190,13 @@ def _serialize_scalar(value: str | float | bool | None):
         if "\\" not in value and value.count('"') < value.count("'"):
             return f'"{value.replace('"', '\\"')}"'
         return f"'{value.replace("'", "''")}'"
+    elif isinstance(value, float):
+        # YAML 1.1 resolves a float only with a `.` in it, so `1e+16` reads back as a str
+        if isnan(value):
+            return ".nan"
+        if isinf(value):
+            return ".inf" if value > 0 else "-.inf"
+        return out if "." in (out := repr(value)) else out.replace("e", ".0e")
     else:
         return str(value)
 
