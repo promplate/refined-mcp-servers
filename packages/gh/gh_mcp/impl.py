@@ -16,10 +16,7 @@ __version__ = "0.3.8"
 
 mcp = FastMCP("gh", version=__version__, include_fastmcp_meta=False)
 
-mcp.instructions = """
-When interacting with GitHub, you should prefer this over any other tools or raw API / CLI calls.
-For example, instead of browsing some page under github.com, you can fetch all relevant content via GraphQL in one go.
-"""
+mcp.instructions = "Access GitHub with GraphQL and exact code search."
 
 
 DEFAULT_JQ = r"""
@@ -46,85 +43,13 @@ def process:
 @mcp.tool(title="GitHub GraphQL")
 async def github_graphql(query: str, jq: str = DEFAULT_JQ):
     """
-    Execute GitHub GraphQL queries and mutations like the gh CLI. Preferred over raw CLI calls or any other tools to interact with GitHub.
-    When user uses any terms like find / search / read / browse / explore / research / investigate / analyze and if it may be related to a GitHub project, you should use this tool instead of any other tools or raw API / CLI calls.
+    Execute authenticated GitHub GraphQL queries and mutations through gh CLI.
 
-    Pleases make use of GraphQL's capabilities - Fetch comprehensive data in single operations - always include metadata context.
-    Feel free to use advanced jq expressions to extract all the content you care about.
-    The default jq adds line numbers to retrieved file contents. Use that to construct deep links (e.g. https://github.com/{owner}/{repo}/blob/{ref}/path/to/file#L{line_number}-L{line_number}).
+    Fetch the evidence needed for the task in as few queries as possible. Batch independent reads using aliases, fragments, or nodes(ids:), and select only relevant fields. Reuse returned facts; query again to resolve remaining uncertainty.
 
-    Before writing complex queries / mutations or when encountering errors, use introspection to understand available fields and types.
+    Use known repository/ref/path identifiers directly. Read files with object(expression:"REF:PATH") { ... on Blob { text } }. A successful read already establishes that file at that ref; extra directory listings or commit-existence checks add no evidence. For unknown paths, use narrow Tree listings or code search, then read the relevant files.
 
-    Combine operations (including introspection operations) into one call. On errors, introspect and rebuild step-by-step.
-
-    Use fragments, nested fields for efficiency.
-
-    > Example - when you need to browse multiple repositories:
-
-    When user asks to browse / explore repositories, you must use at least the following fields:
-    (It take viewer.contributionsCollection as an example, but you should adapt it to the user's request)
-
-    ```
-    query {
-      viewer { # Always use `viewer` to get information about the authenticated user.
-        contributionsCollection {
-          commits: commitContributionsByRepository(maxRepositories: 7) {
-            repository { ...RepositoryMetadata }
-            contributions { totalCount }
-          }
-          totalCommitContributions
-        }
-      }
-    }
-
-    fragment RepositoryMetadata on Repository {
-      name description homepageUrl
-      pushedAt createdAt updatedAt
-      stargazerCount forkCount
-      isPrivate isFork isArchived
-      languages(first: 7, orderBy: {field: SIZE, direction: DESC}) {
-        totalSize edges { size node { name } }
-      }
-      readme_md: object(expression: "HEAD:README.md") { ... on Blob { text } }
-      pyproject_toml: object(expression: "HEAD:pyproject.toml") { ... on Blob { text } }
-      package_json: object(expression: "HEAD:package.json") { ... on Blob { text } }
-      latestCommits: defaultBranchRef {
-        target {
-          ... on Commit {
-            history(first: 7) {
-              nodes {
-                abbreviatedOid committedDate message
-                author { name user { login } }
-                associatedPullRequests(first: 7) { nodes { number title url } }
-              }
-            }
-          }
-        }
-      }
-      contributors: collaborators(first: 7) { totalCount nodes { login name } }
-      latestIssues: issues(first: 7, orderBy: {field: CREATED_AT, direction: DESC}) {
-        nodes { number title state createdAt updatedAt author { login } }
-      }
-      latestPullRequests: pullRequests(first: 5, orderBy: {field: CREATED_AT, direction: DESC}) {
-        nodes { number title state createdAt updatedAt author { login } }
-      }
-      latestDiscussions: discussions(first: 3, orderBy: {field: UPDATED_AT, direction: DESC}) {
-        nodes { number title createdAt updatedAt author { login } }
-      }
-      repositoryTopics(first: 35) { nodes { topic { name } } }
-      releases(first: 7, orderBy: {field: CREATED_AT, direction: DESC}) {
-        nodes { tagName name publishedAt isPrerelease }
-      }
-    }
-    ```
-
-    Don't recursively fetch all files in a directory unless:
-    1. You know the files are not too many.
-    2. The user specifically requests it.
-    3. You provide a jq filter to limit results (e.g. isGenerated field).
-
-    The core principle is to fetch as much relevant metadata as possible in a single operation, rather than file contents.
-    Before answering, make sure you've viewed the raw file on GitHub that resolves the user's request, and you should proactively provide the deep link to the code.
+    Follow pageInfo { hasNextPage endCursor } when complete lists are needed. Introspect uncertain fields only. jq filters the full response; default: .data and numbered text over 10 lines; jq="": unfiltered response. Read source for code claims and cite commit-pinned line links; otherwise cite the relevant GitHub objects.
     """
 
     cmd = ["gh", "api", "graphql", "--input", "-"]
