@@ -45,11 +45,13 @@ async def github_graphql(query: str, jq: str = DEFAULT_JQ):
     """
     Execute authenticated GitHub GraphQL queries and mutations through gh CLI.
 
-    Fetch the evidence needed for the task in as few queries as possible. Batch independent reads using aliases, fragments, or nodes(ids:), and select only relevant fields. Reuse returned facts; query again to resolve remaining uncertainty.
+    Batch independent evidence needed for the task into one query: combine relevant repository metadata, issues/PRs, commits, and files using nested selections, aliases, fragments, or nodes(ids:). Select only needed fields and bound connections. Reuse returned facts; query again to resolve remaining uncertainty.
+
+    Use jq on the full response to return compact facts, source URLs, and relevant file excerpts with original line numbers. For example, .data.repository | {url, pr: (.pullRequest | {state, headRefOid})}. jq runs after GitHub responds: it reduces tool output, not the query's server-side cost.
 
     Use known repository/ref/path identifiers directly. Read files with object(expression:"REF:PATH") { ... on Blob { text } }. A successful read already establishes that file at that ref; extra directory listings or commit-existence checks add no evidence. For unknown paths, use narrow Tree listings or code search, then read the relevant files.
 
-    Follow pageInfo { hasNextPage endCursor } when complete lists are needed. Introspect uncertain fields only. jq filters the full response; default: .data and numbered text over 10 lines; jq="": unfiltered response. Read source for code claims and cite commit-pinned line links; otherwise cite the relevant GitHub objects.
+    Follow pageInfo { hasNextPage endCursor } when complete lists are needed. Introspect uncertain fields only. Default jq: .data and numbered text over 10 lines; jq="": unfiltered response. Read source for code claims and cite commit-pinned line links; otherwise cite the relevant GitHub objects.
     """
 
     cmd = ["gh", "api", "graphql", "--input", "-"]
