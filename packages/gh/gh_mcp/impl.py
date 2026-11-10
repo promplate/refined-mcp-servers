@@ -12,7 +12,7 @@ from pydantic import Field
 from .utils import run_subprocess
 from .yaml import readable_yaml_dumps
 
-__version__ = "0.3.8"
+__version__ = "0.3.9"
 
 mcp = FastMCP("gh", version=__version__, include_fastmcp_meta=False)
 
@@ -134,9 +134,9 @@ async def github_graphql(query: str, jq: str = DEFAULT_JQ):
 
     ret = await run_subprocess(cmd, input=dumps({"query": query}, ensure_ascii=False).encode(), env=_get_env())
 
-    result = ret.stdout or ret.stderr or ""
+    result = ret.stdout.strip() or ret.stderr.strip() or ""
 
-    if not result.strip():
+    if not result:
         raise ToolError("[[ The response is empty. Please adjust your query and try again! ]]")
 
     result = result.replace("\r\n", "\n")
@@ -195,12 +195,10 @@ async def github_code_search(
     ret = await run_subprocess(cmd, env=_get_env())
 
     if ret.returncode:
-        raise ToolError(ret.stdout or ret.stderr or "[[ An unknown error occurred during the code search. ]]")
+        raise ToolError(ret.stdout.strip() or ret.stderr.strip() or "[[ An unknown error occurred during the code search. ]]")
 
     if match_type == "path":
-        return ret.stdout or ret.stderr
-
-    assert ret.stdout is not None
+        return ret.stdout.strip() or ret.stderr.strip()
 
     data = loads(ret.stdout)
     for item in data:
