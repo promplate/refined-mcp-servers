@@ -33,7 +33,7 @@ def readable_yaml_dumps(data: JSON):
     Single-line strings are output without quotes when possible.
 
     Note: output is optimised for reading, but must stay parseable -- `yaml.safe_load`
-    round-trips every value it is given.
+    preserves values, with tuples normalized to lists.
     """
     lines: list[str] = []
     _serialize(data, lines, indent=0)
@@ -62,6 +62,9 @@ def _serialize_dict(data: dict, lines: list[str], indent: int, prefix: str):
 
     for key, value in data.items():
         key_str = _serialize_scalar(key)
+        if len(key_str) > 1024:  # YAML limits implicit keys to 1024 characters, including quotes and escapes.
+            lines.append(f"{prefix}? {key_str}\n")
+            key_str = ""
 
         if isinstance(value, (dict, list, tuple)):
             if not value:
@@ -110,6 +113,10 @@ def _serialize_dict_in_list(data: dict, lines: list[str], indent: int, prefix: s
     for i, (key, value) in enumerate(data.items()):
         key_str = _serialize_scalar(key)
         line_prefix = " " if i == 0 else item_prefix
+        if len(key_str) > 1024:
+            lines.append(f"{line_prefix}? {key_str}\n")
+            key_str = ""
+            line_prefix = item_prefix
 
         if isinstance(value, (dict, list, tuple)):
             # For empty collections, inline them
@@ -213,7 +220,7 @@ RE_NEEDS_ESCAPE = re.compile(
       | ^[-+]?(?:[0-9][0-9_]*)?$  # integers
       | ^[-+]?(?:[0-9][0-9_]*)?\.[0-9_]*$  # floats
       | ^[-+]?(?:[0-9][0-9_]*)?(?:\.[0-9_]*)?[eE][-+]?[0-9]+$  # scientific notation
-      | ^\.inf$|^\.nan$  # special floats
+      | ^[-+]?\.inf$|^\.nan$  # special floats
       | ^\s|\s$  # leading or trailing whitespace
       | ^%  # directive indicator, only at the start of a scalar
       | [:\[\]{},&*#?|<>!`@'\"\t\r\n-]  # special characters
